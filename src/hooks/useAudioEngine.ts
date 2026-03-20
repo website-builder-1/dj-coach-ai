@@ -27,9 +27,17 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
     audioEngine.init();
     midiController.init().then(ok => {
       setMidiConnected(ok);
-      // Resume audio context once MIDI is connected
       if (ok) audioEngine.resume();
     });
+
+    // Resume AudioContext on first user interaction (browser policy)
+    const resumeOnInteraction = () => {
+      audioEngine.resume();
+      window.removeEventListener('click', resumeOnInteraction);
+      window.removeEventListener('keydown', resumeOnInteraction);
+    };
+    window.addEventListener('click', resumeOnInteraction);
+    window.addEventListener('keydown', resumeOnInteraction);
 
     const deckListener = (id: 'A' | 'B', state: DeckState) => {
       if (id === 'A') setDeckA(s => ({ ...s, ...state }));
