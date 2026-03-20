@@ -25,7 +25,11 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
   // Init engine
   useEffect(() => {
     audioEngine.init();
-    midiController.init().then(ok => setMidiConnected(ok));
+    midiController.init().then(ok => {
+      setMidiConnected(ok);
+      // Resume audio context once MIDI is connected
+      if (ok) audioEngine.resume();
+    });
 
     const deckListener = (id: 'A' | 'B', state: DeckState) => {
       if (id === 'A') setDeckA(s => ({ ...s, ...state }));
