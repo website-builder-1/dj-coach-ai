@@ -321,7 +321,7 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
     deckA, deckB, crossfader, levels, feedbacks, performance, loading,
     midiConnected, midiDeviceName, loadFile, play, pause, cue, setTempo, setEQ, setFilter,
     nudge, scratch, setVolume, sync, triggerPad, updateCrossfader, getTransitionSuggestion, getGhostData,
-    nudge, scratch, updateCrossfader, getTransitionSuggestion, getGhostData,
+    
     energy: aiCoach.getEnergy(),
     mistakes: aiCoach.getMistakes(),
     feedbackLog: aiCoach.getFeedbackLog(),
