@@ -214,7 +214,13 @@ export class AudioEngine {
   private rafId: number | null = null;
 
   async init() {
-    if (this.ctx) return;
+    if (this.ctx) {
+      // Always try to resume in case it's suspended
+      if (this.ctx.state === 'suspended') {
+        await this.ctx.resume();
+      }
+      return;
+    }
     this.ctx = new AudioContext();
     this.gainA = this.ctx.createGain();
     this.gainB = this.ctx.createGain();
@@ -224,6 +230,12 @@ export class AudioEngine {
     this.deckB = new DeckNode(this.ctx, this.gainB);
     this.applyCrossfader();
     this.startLoop();
+  }
+
+  async resume() {
+    if (this.ctx?.state === 'suspended') {
+      await this.ctx.resume();
+    }
   }
 
   private startLoop() {

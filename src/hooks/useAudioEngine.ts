@@ -25,7 +25,19 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
   // Init engine
   useEffect(() => {
     audioEngine.init();
-    midiController.init().then(ok => setMidiConnected(ok));
+    midiController.init().then(ok => {
+      setMidiConnected(ok);
+      if (ok) audioEngine.resume();
+    });
+
+    // Resume AudioContext on first user interaction (browser policy)
+    const resumeOnInteraction = () => {
+      audioEngine.resume();
+      window.removeEventListener('click', resumeOnInteraction);
+      window.removeEventListener('keydown', resumeOnInteraction);
+    };
+    window.addEventListener('click', resumeOnInteraction);
+    window.addEventListener('keydown', resumeOnInteraction);
 
     const deckListener = (id: 'A' | 'B', state: DeckState) => {
       if (id === 'A') setDeckA(s => ({ ...s, ...state }));
@@ -45,16 +57,40 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
     aiCoach.onScoreUpdate(scoreListener);
 
     // MIDI control handler
-    const midiHandler = (target: string, value: number) => {
-      const deck = audioEngine.getDeck(target.startsWith('deckA') ? 'A' : 'B');
-      if (!deck) return;
-      if (target.endsWith('.tempo')) deck.setTempo(value * 16 - 8);
-      else if (target.endsWith('.play')) { if (value > 0.5) deck.state.playing ? deck.pause() : deck.play(); }
-      else if (target === 'mixer.crossfader') {
+    const midiHandler = async (target: string, value: number) => {
+      // Resume AudioContext on any MIDI input (MIDI events aren't user gestures)
+      await audioEngine.resume();
+
+      if (target === 'mixer.crossfader') {
         const v = Math.round(value * 100);
         audioEngine.setCrossfader(v);
         setCrossfader(v);
         crossfaderRef.current = v;
+        return;
+      }
+
+      const deckId: 'A' | 'B' = target.startsWith('deckA') ? 'A' : 'B';
+      const deck = audioEngine.getDeck(deckId);
+      if (!deck) return;
+
+      if (target.endsWith('.tempo')) {
+        deck.setTempo(value * 16 - 8);
+      } else if (target.endsWith('.play')) {
+        if (value > 0.5) {
+          if (deck.state.playing) deck.pause();
+          else deck.play();
+        }
+      } else if (target.endsWith('.volume')) {
+        deck.setVolume(value);
+        deck.gainNode.gain.value = value;
+      } else if (target.endsWith('.eq_hi')) {
+        deck.setEQ('hi', value * 100);
+      } else if (target.endsWith('.eq_mid')) {
+        deck.setEQ('mid', value * 100);
+      } else if (target.endsWith('.eq_lo')) {
+        deck.setEQ('lo', value * 100);
+      } else if (target.endsWith('.cue')) {
+        if (value > 0.5) deck.cue();
       }
     };
     midiController.onControl(midiHandler);
