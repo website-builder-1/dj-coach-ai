@@ -262,6 +262,41 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
   const nudge = useCallback((id: 'A' | 'B', dir: number) => audioEngine.getDeck(id)?.nudge(dir), []);
   const scratch = useCallback((id: 'A' | 'B', delta: number) => audioEngine.getDeck(id)?.scratch(delta), []);
 
+  const setVolume = useCallback((id: 'A' | 'B', val: number) => {
+    const deck = audioEngine.getDeck(id);
+    if (deck) {
+      deck.setVolume(val);
+      deck.gainNode.gain.value = val;
+    }
+  }, []);
+
+  const sync = useCallback((id: 'A' | 'B') => {
+    const deck = audioEngine.getDeck(id);
+    const other = audioEngine.getDeck(id === 'A' ? 'B' : 'A');
+    if (deck && other && deck.state.loaded && other.state.loaded) {
+      const targetBPM = other.state.bpm * (1 + other.state.tempo / 100);
+      const baseBPM = deck.state.bpm;
+      if (baseBPM > 0) {
+        const tempoAdj = ((targetBPM / baseBPM) - 1) * 100;
+        deck.setTempo(Math.max(-8, Math.min(8, tempoAdj)));
+      }
+    }
+  }, []);
+
+  const triggerPad = useCallback((id: 'A' | 'B', pad: number, shifted: boolean) => {
+    const deck = audioEngine.getDeck(id);
+    if (!deck) return;
+    // Hot cue: pads 1-4 set/jump to cue points
+    if (pad >= 1 && pad <= 4 && !shifted) {
+      if (deck.state.playing) {
+        deck.state.cuePoint = deck.getCurrentTime();
+      } else {
+        deck.cue();
+        deck.play();
+      }
+    }
+  }, []);
+
   const updateCrossfader = useCallback((val: number) => {
     setCrossfader(val);
     crossfaderRef.current = val;
@@ -285,7 +320,8 @@ export function useAudioEngine(smartFader: boolean, mode: 'learning' | 'assist')
   return {
     deckA, deckB, crossfader, levels, feedbacks, performance, loading,
     midiConnected, midiDeviceName, loadFile, play, pause, cue, setTempo, setEQ, setFilter,
-    nudge, scratch, updateCrossfader, getTransitionSuggestion, getGhostData,
+    nudge, scratch, setVolume, sync, triggerPad, updateCrossfader, getTransitionSuggestion, getGhostData,
+    
     energy: aiCoach.getEnergy(),
     mistakes: aiCoach.getMistakes(),
     feedbackLog: aiCoach.getFeedbackLog(),
